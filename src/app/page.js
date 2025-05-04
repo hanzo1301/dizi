@@ -125,10 +125,7 @@ export default function Home() {
                     className='absolute inset-0 w-full h-full rounded-full object-cover border-4'
                     style={{ borderColor: colors.primary }}/>
                 </div>
-                <div className="absolute -bottom-2 -right-2 bg-white px-3 py-1 rounded-full shadow-sm border"
-                     style={{ borderColor: colors.accent }}>
-                  <span className="font-serif text-sm" style={{ color: colors.primary }}>Doctor of medicine</span>
-                </div>
+                
               </div>
             </motion.div>
           </div>
@@ -197,7 +194,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Book Section */}
+        {/* Book Section 
         <section ref={bookRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
           <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-8 md:mb-12"
             style={{ color: colors.primary }}
@@ -283,7 +280,67 @@ export default function Home() {
               </motion.div>
             ))}
           </motion.div>
-        </section>
+        </section>*/}
+
+ {/* Study Materials Section */}
+      <section ref={bookRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
+        {/* Section Header */}
+        <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-6 md:mb-8"
+          style={{ color: colors.primary }}
+          initial={{ opacity: 0 }}
+          animate={isBookInView ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 0.4 }}>
+          My Study Materials
+        </motion.h2>
+
+        {/* Content Container */}
+        <motion.div className="rounded-lg p-6 md:p-8 border-l-4"
+          style={{ 
+            backgroundColor: 'rgba(255,255,255,0.95)', 
+            borderColor: colors.primary
+          }}
+          initial={{ y: 20, opacity: 0 }}
+          animate={isBookInView ? { y: 0, opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 0.5 }}>
+
+          {/* Image Grid */}
+          <motion.div 
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6"
+            variants={containerVariants}
+            initial="hidden"
+            animate={isBookInView ? "visible" : "hidden"}
+          >
+            {[
+              { level: 1, file: 'Level1_Wallpaper1.jpg' },
+              { level: 3, file: 'Level3_Wallpaper2.jpg' },
+              { level: 4, file: 'Level4_Wallpaper3_page-0001.jpg' },
+              { level: 5, file: 'Level5_Wallpaper1_page-0001.jpg' },
+              { level: 6, file: 'Level6_Wallpaper2_page-0001.jpg' }
+            ].map((item) => (
+              <motion.div
+                key={item.level}
+                variants={itemVariants}
+                whileHover={{ scale: 1.05 }}
+                className="flex justify-center"
+              >
+                <img 
+                  src={`/${item.file}`}
+                  alt={`Incredible English Level ${item.level}`}
+                  className="max-w-full h-auto object-contain rounded-lg shadow-sm"
+                  style={{ 
+                    maxHeight: '300px',
+                    border: `2px solid ${colors.accent}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  }}
+                  loading="lazy"
+                />
+              </motion.div>
+            ))}
+          </motion.div>
+
+         
+        </motion.div>
+      </section>
 
         {/* Contact Me Section */}
         <section ref={contactRef} className="mb-16 md:mb-24 pb-12">
