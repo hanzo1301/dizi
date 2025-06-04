@@ -5,6 +5,34 @@ import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 
 export default function Home() {
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [events, setEvents] = useState([]);
+
+  // Facebook events 
+  const fetchEvents = async () => {
+    try {
+      // Replace with your Facebook page's public events URL
+      const response = await fetch(`https://www.facebook.com/profile.php?id=61576545780237`);
+      const data = await response.json();
+      
+      if (data && data.events) {
+        setEvents(data.events);
+      } else {
+        setError('No events found');
+      }
+    } catch (err) {
+      setError('Failed to fetch events');
+      console.error('Error fetching Facebook events:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+  
   // Create refs for each section
   const introRef = useRef(null);
   const whoCanLearnRef = useRef(null);
@@ -193,6 +221,133 @@ export default function Home() {
             </motion.div>
           </div>
         </section>
+
+      {/* Events Section */}
+      <section className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
+      <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-8 md:mb-12"
+        style={{ color: colors.primary }}>
+        Upcoming Events
+      </motion.h2>
+
+      <div className="rounded-lg p-6 md:p-8 border-l-4"
+        style={{ 
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          borderColor: colors.primary
+        }}>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" 
+              style={{ borderColor: colors.primary }}></div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="mt-2 font-serif font-medium" style={{ color: colors.primary }}>Error loading events</h3>
+            <p className="mt-1 font-serif text-sm" style={{ color: colors.lightText }}>
+              {error}
+            </p>
+          </div>
+        ) : events.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map((event) => (
+              <motion.div 
+                key={event.id}
+                className="rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+                style={{ 
+                  border: `1px solid ${colors.accent}`,
+                  backgroundColor: 'rgba(255,255,255,0.98)'
+                }}
+                variants={itemVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+              >
+                {/* Event Cover Image */}
+                <div className="relative h-48 bg-gray-100">
+                  {event.cover ? (
+                    <img 
+                      src={event.cover.source} 
+                      alt={event.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center" 
+                      style={{ backgroundColor: colors.background }}>
+                      <span className="text-4xl" style={{ color: colors.accent }}>🎉</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                    <h3 className="font-serif font-bold text-white text-lg">{event.name}</h3>
+                    <p className="font-serif text-white text-sm">
+                      {new Date(event.start_time).toLocaleDateString('en-GB', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Event Details */}
+                <div className="p-4">
+                  <div className="flex items-start mb-3">
+                    <svg className="w-5 h-5 mt-1 mr-2 flex-shrink-0" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <p className="font-serif text-sm" style={{ color: colors.text }}>
+                      {event.place?.name || 'Online Event'}
+                    </p>
+                  </div>
+
+                  {event.description && (
+                    <p className="font-serif text-sm mb-4 line-clamp-3" style={{ color: colors.text }}>
+                      {event.description}
+                    </p>
+                  )}
+
+                  <a 
+                    href={`https://facebook.com/events/${event.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 rounded font-serif text-sm transition-colors"
+                    style={{ 
+                      backgroundColor: colors.primary,
+                      color: 'white'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = colors.primary}
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
+                    </svg>
+                    View Event
+                  </a>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <svg className="mx-auto h-12 w-12" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="mt-2 font-serif font-medium" style={{ color: colors.primary }}>No upcoming events</h3>
+            <p className="mt-1 font-serif text-sm" style={{ color: colors.lightText }}>
+              Check back later or visit our Facebook page
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+
 
         {/* Book Section 
         <section ref={bookRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
