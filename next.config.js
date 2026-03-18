@@ -8,7 +8,6 @@ const nextConfig = {
     unoptimized: true
   },
   experimental: {
-    layers: true,
     webpackBuildWorker: true
   },
   webpack: (config) => {
