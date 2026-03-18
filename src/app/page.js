@@ -1,48 +1,38 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion, useInView } from 'framer-motion';
+import React, { useEffect, useState, useCallback } from 'react';
+import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { useRef } from 'react';
 
 export default function Home() {
+  // Google Drive photo gallery (sync from Drive folder when DRIVE_FOLDER_ID + credentials are set)
+  const [photos, setPhotos] = useState([]);
+  const [photosLoading, setPhotosLoading] = useState(true);
+  const [photosError, setPhotosError] = useState(null);
+  const [photosConfigured, setPhotosConfigured] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Upcoming events (synced from Drive folder EVENTS_FOLDER_ID)
   const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [eventsError, setEventsError] = useState(null);
+  const [eventsConfigured, setEventsConfigured] = useState(false);
 
-  // Facebook events 
-  const fetchEvents = async () => {
-    try {
-      // Replace with your Facebook page's public events URL
-      const response = await fetch(`https://www.facebook.com/profile.php?id=61576545780237`);
-      const data = await response.json();
-      
-      if (data && data.events) {
-        setEvents(data.events);
-      } else {
-        setError('No events found');
-      }
-    } catch (err) {
-      setError('Failed to fetch events');
-      console.error('Error fetching Facebook events:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-  
   // Create refs for each section
   const introRef = useRef(null);
   const whoCanLearnRef = useRef(null);
   const bookRef = useRef(null);
+  const eventsRef = useRef(null);
+  const galleryRef = useRef(null);
   const contactRef = useRef(null);
 
   // Track visibility
   const isIntroInView = useInView(introRef, { amount: 0.1 });
   const isWhoCanLearnInView = useInView(whoCanLearnRef, { amount: 0.1 });
   const isBookInView = useInView(bookRef, { amount: 0.1 });
+  const isEventsInView = useInView(eventsRef, { amount: 0.1 });
+  const isGalleryInView = useInView(galleryRef, { amount: 0.1 });
   const isContactInView = useInView(contactRef, { amount: 0.1 });
 
   // British color palette
@@ -78,6 +68,74 @@ export default function Home() {
     window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, '_blank');
   };
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setPhotosLoading(true);
+        setPhotosError(null);
+        const res = await fetch('/api/photos');
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.success) {
+          setPhotos(data.photos || []);
+          setPhotosConfigured(data.configured !== false);
+        } else {
+          setPhotos([]);
+          setPhotosError(data.error || 'Failed to load gallery');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setPhotosError(err.message || 'Failed to load gallery');
+          setPhotos([]);
+        }
+      } finally {
+        if (!cancelled) setPhotosLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setEventsLoading(true);
+        setEventsError(null);
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        if (cancelled) return;
+        if (data.success) {
+          setEvents(data.events || []);
+          setEventsConfigured(data.configured !== false);
+        } else {
+          setEvents([]);
+          setEventsError(data.error || 'Failed to load events');
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setEventsError(err.message || 'Failed to load events');
+          setEvents([]);
+        }
+      } finally {
+        if (!cancelled) setEventsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') closeLightbox(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [lightboxOpen, closeLightbox]);
+
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
       {/* Cloud Background */}
@@ -94,24 +152,36 @@ export default function Home() {
         className="relative p-6 max-w-6xl mx-auto z-10"
         style={{ backgroundColor: 'rgba(248, 245, 240, 0.9)' }}
       >
-        {/* Header */}
+        {/* Header with Larger Logo */}
         <motion.header className="mb-12 text-center pb-6 border-b-2"
           style={{ borderColor: colors.primary }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}>
-          <motion.h1 className="text-4xl md:text-5xl font-serif font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}>
-            Welcome to DiZi's
-          </motion.h1>
+          <div className="flex justify-center items-center mb-4">
+            <img 
+              src="/logo.jpg" 
+              alt="DiZi's Logo"
+              className="h-24 w-24 mr-4" // 20% larger (from h-20 w-20 to h-24 w-24)
+            />
+            <motion.h1 className="text-4xl md:text-5xl font-serif font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}>
+              Welcome to DiZis
+            </motion.h1>
+            <img 
+              src="/logo.jpg" 
+              alt="DiZi's Logo"
+              className="h-24 w-24 ml-4" // 20% larger (from h-20 w-20 to h-24 w-24)
+            />
+          </div>
           <motion.p className="text-lg md:text-xl font-serif italic"
             style={{ color: colors.accent }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2, duration: 0.5 }}>
-            Master English - The Easy Way
+            Master English The Easy Way
           </motion.p>
         </motion.header>
 
@@ -153,7 +223,6 @@ export default function Home() {
                     className='absolute inset-0 w-full h-full rounded-full object-cover border-4'
                     style={{ borderColor: colors.primary }}/>
                 </div>
-                
               </div>
             </motion.div>
           </div>
@@ -208,7 +277,7 @@ export default function Home() {
               </ul>
 
               <p className="text-base md:text-lg leading-relaxed font-serif mb-4" style={{ color: colors.text }}>
-                Through <span className="font-semibold italic" style={{ color: colors.secondary }}>DiZi's - The Easy Way</span>, I strive to make learning English <span className="font-semibold">accessible</span>, <span className="font-semibold">engaging</span>, and <span className="font-semibold">transformative</span> for everyone I work with.
+                Through <span className="font-semibold italic" style={{ color: colors.secondary }}>DiZis The Easy Way</span>, I strive to make learning English <span className="font-semibold">accessible</span>, <span className="font-semibold">engaging</span>, and <span className="font-semibold">transformative</span> for everyone I work with.
               </p>
 
               <p className="text-base md:text-lg leading-relaxed font-serif mb-4 italic" style={{ color: colors.text }}>
@@ -222,280 +291,201 @@ export default function Home() {
           </div>
         </section>
 
-      {/* Events Section */}
-      <section className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
-      <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-8 md:mb-12"
-        style={{ color: colors.primary }}>
-        Upcoming Events
-      </motion.h2>
-
-      <div className="rounded-lg p-6 md:p-8 border-l-4"
-        style={{ 
-          backgroundColor: 'rgba(255,255,255,0.95)',
-          borderColor: colors.primary
-        }}>
-
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" 
-              style={{ borderColor: colors.primary }}></div>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <h3 className="mt-2 font-serif font-medium" style={{ color: colors.primary }}>Error loading events</h3>
-            <p className="mt-1 font-serif text-sm" style={{ color: colors.lightText }}>
-              {error}
+        {/* Upcoming Events – synced from Google Drive folder (EVENTS_FOLDER_ID) */}
+        <section ref={eventsRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
+          <header className="text-center mb-6 md:mb-8">
+            <h2 className="text-2xl md:text-3xl font-serif font-bold mb-2"
+              style={{ color: colors.primary }}>
+              Upcoming Events
+            </h2>
+            <p className="text-lg font-serif italic" style={{ color: colors.lightText }}>
+              Join us for workshops, camps, and more.
             </p>
-          </div>
-        ) : events.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((event) => (
-              <motion.div 
-                key={event.id}
-                className="rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
-                style={{ 
-                  border: `1px solid ${colors.accent}`,
-                  backgroundColor: 'rgba(255,255,255,0.98)'
-                }}
-                variants={itemVariants}
-                initial="hidden"
-                animate="visible"
-                whileHover="hover"
-              >
-                {/* Event Cover Image */}
-                <div className="relative h-48 bg-gray-100">
-                  {event.cover ? (
-                    <img 
-                      src={event.cover.source} 
-                      alt={event.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center" 
-                      style={{ backgroundColor: colors.background }}>
-                      <span className="text-4xl" style={{ color: colors.accent }}>🎉</span>
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                    <h3 className="font-serif font-bold text-white text-lg">{event.name}</h3>
-                    <p className="font-serif text-white text-sm">
-                      {new Date(event.start_time).toLocaleDateString('en-GB', {
-                        weekday: 'short',
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Event Details */}
-                <div className="p-4">
-                  <div className="flex items-start mb-3">
-                    <svg className="w-5 h-5 mt-1 mr-2 flex-shrink-0" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <p className="font-serif text-sm" style={{ color: colors.text }}>
-                      {event.place?.name || 'Online Event'}
-                    </p>
-                  </div>
-
-                  {event.description && (
-                    <p className="font-serif text-sm mb-4 line-clamp-3" style={{ color: colors.text }}>
-                      {event.description}
-                    </p>
-                  )}
-
-                  <a 
-                    href={`https://facebook.com/events/${event.id}`}
+          </header>
+          {eventsLoading && (
+            <p className="text-center font-serif" style={{ color: colors.text }}>Loading events…</p>
+          )}
+          {eventsError && (
+            <p className="text-center font-serif" style={{ color: colors.secondary }}>{eventsError}</p>
+          )}
+          {!eventsConfigured && !eventsLoading && (
+            <p className="text-center font-serif text-sm italic" style={{ color: colors.lightText }}>
+              Add EVENTS_FOLDER_ID in .env to sync event images from Google Drive.
+            </p>
+          )}
+          {!eventsLoading && events.length > 0 && (
+            <div className="rounded-lg p-6 md:p-8 border-l-4"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.95)',
+                borderColor: colors.primary
+              }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 justify-items-center"
+                style={{ gridAutoRows: '1fr' }}>
+                {events.map((event) => (
+                  <motion.a
+                    key={event.id}
+                    href={event.coverUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center px-4 py-2 rounded font-serif text-sm transition-colors"
-                    style={{ 
-                      backgroundColor: colors.primary,
-                      color: 'white'
+                    className="rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow w-full max-w-sm flex flex-col cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    style={{
+                      border: `1px solid ${colors.accent}`,
+                      backgroundColor: 'rgba(255,255,255,0.98)',
+                      maxWidth: '100%'
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = colors.secondary}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = colors.primary}
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate={isEventsInView ? 'visible' : 'hidden'}
+                    whileHover="hover"
                   >
-                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z"/>
-                    </svg>
-                    View Event
-                  </a>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12" style={{ color: colors.accent }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <h3 className="mt-2 font-serif font-medium" style={{ color: colors.primary }}>No upcoming events</h3>
-            <p className="mt-1 font-serif text-sm" style={{ color: colors.lightText }}>
-              Check back later or visit our Facebook page
-            </p>
-          </div>
-        )}
-      </div>
-    </section>
+                    <div className="relative aspect-[4/3] bg-gray-100 flex-1 min-h-0">
+                      <img
+                        src={event.coverUrl}
+                        alt={event.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        draggable={false}
+                      />
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                        <h3 className="font-serif font-bold text-white text-lg">{event.name}</h3>
+                      </div>
+                    </div>
+                  </motion.a>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
 
-
-        {/* Book Section 
-        <section ref={bookRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
-          <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-8 md:mb-12"
+        {/* Gallery – photos synced from Google Drive (set DRIVE_FOLDER_ID + credentials in .env) */}
+        <section ref={galleryRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
+          <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-6 md:mb-8"
             style={{ color: colors.primary }}
-            initial={{ opacity: 0, y: 10 }}
-            animate={isBookInView ? { opacity: 1, y: 0 } : { opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={isGalleryInView ? { opacity: 1 } : { opacity: 0 }}
             transition={{ duration: 0.4 }}>
-            My Book 
+            Gallery
           </motion.h2>
-          
-          <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8"
-            variants={containerVariants}
-            initial="hidden"
-            animate={isBookInView ? "visible" : "hidden"}>
-            {[
-              { 
-                name: 'DiZi\'s – The Easy Way', 
-                description: (
-                  <p className="leading-relaxed font-serif" style={{ color: colors.text }}>
-                    • Learning English is one of the most valuable skills you can develop, and *DiZi's – The Easy Way* is here to make that journey as accessible, engaging, and effective as possible.
-                    This book combines proven teaching methodologies with a personalized, learner-focused approach to ensure that students not only master English but also embrace it as a lifelong skill.
-                  </p>
-                ),
-                fullWidth: false
-              },
-              { 
-                name: 'Our Vision', 
-                description: (
-                  <p className="leading-relaxed font-serif" style={{ color: colors.text }}>
-                    • Created by Dr. Dimithri Mahavithanage, an experienced educator and language specialist, *DiZi's – The Easy Way* is rooted in a simple yet powerful vision: to inspire learners to see English as more than just a tool for school or work, but as a gateway to opportunities, confidence, and global connections.
-                    • Dr. Mahavithanage brings over a decade of expertise to this book, having taught English to students of all ages and backgrounds. As a dual citizen of Britain and Sri Lanka, and a native English speaker, he has developed a teaching approach that blends structure, repetition, and immersive engagement to deliver exceptional results.
-                  </p>
-                ),
-                fullWidth: false
-              },
-              { 
-                name: 'What Makes This Book Unique?', 
-                description: (
-                  <ul className="space-y-2 font-serif" style={{ color: colors.text }}>
-                    <li>• Interactive and engaging lessons with dynamic Q&amp;A and real-life scenarios.</li>
-                    <li>• Simplified grammar explanations using visuals and practical examples.</li>
-                    <li>• Focus on conversational fluency through immersive role-play activities.</li>
-                    <li>• Cultural and practical relevance to make learning meaningful and enjoyable.</li>
-                    <li>• Integrated tools such as QR codes and online quizzes to reinforce learning.</li>
-                  </ul>
-                ),
-                fullWidth: false
-              },
-              { 
-                name: 'How It Works', 
-                description: (
-                  <p className="leading-relaxed font-serif" style={{ color: colors.text }}>
-                    • Lessons in this book are carefully structured to build your skills step by step. Each chapter focuses on specific topics, such as greetings, introductions, or grammar points, and is designed to maximize your speaking, listening, and comprehension abilities.
-                    • You will encounter a mix of repetition-based practice, role-playing scenarios, and guided discovery, ensuring that you retain what you learn and feel confident applying it in real-world situations.
-                  </p>
-                ),
-                fullWidth: false
-              },
-              { 
-                name: 'An Invitation to Transform Your Learning', 
-                description: (
-                  <p className="leading-relaxed font-serif" style={{ color: colors.text }}>
-                    • *DiZi's – The Easy Way* is more than a textbook—it is your companion in mastering the English language. Whether you are a beginner or looking to refine your skills, this book is your key to unlocking new opportunities and achieving your goals. Dive in, stay curious, and let the learning begin!
-                  </p>
-                ),
-                fullWidth: true
-              },
-            ].map((course, index) => (
-              <motion.div
-                key={index}
-                className={`rounded-lg p-6 md:p-8 border-t-4 ${course.fullWidth ? 'md:col-span-2' : ''}`}
-                style={{ 
-                  backgroundColor: 'white',
-                  borderColor: colors.accent,
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)'
-                }}
-                variants={itemVariants}
-                whileHover="hover">
-                <h3 className="text-lg md:text-xl font-serif font-semibold mb-3"
-                    style={{ color: colors.secondary }}>
-                  {course.name}
-                </h3>
-                <div>{course.description}</div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </section>*/}
+          {photosLoading && (
+            <p className="text-center font-serif" style={{ color: colors.text }}>Loading photos…</p>
+          )}
+          {photosError && (
+            <p className="text-center font-serif" style={{ color: colors.secondary }}>{photosError}</p>
+          )}
+          {!photosConfigured && !photosLoading && (
+            <p className="text-center font-serif text-sm italic" style={{ color: colors.lightText }}>
+              Add DRIVE_FOLDER_ID (and Google credentials) in .env to sync photos from a Google Drive folder.
+            </p>
+          )}
+          {!photosLoading && photos.length > 0 && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {photos.map((p, idx) => (
+                  <motion.button
+                    key={p.id}
+                    type="button"
+                    onClick={() => {
+                      setLightboxIndex(idx);
+                      setLightboxOpen(true);
+                    }}
+                    className="rounded-lg overflow-hidden border-2 block w-full focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer text-left"
+                    style={{ borderColor: colors.accent }}
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate={isGalleryInView ? 'visible' : 'hidden'}
+                    whileHover="hover"
+                  >
+                    <img
+                      src={p.url}
+                      alt=""
+                      className="w-full aspect-square object-cover"
+                      loading="lazy"
+                      draggable={false}
+                    />
+                  </motion.button>
+                ))}
+              </div>
 
- {/* Study Materials Section */}
-      <section ref={bookRef} className="mb-16 md:mb-24 pb-12 border-b-2" style={{ borderColor: colors.primary }}>
-        {/* Section Header */}
-        <motion.h2 className="text-2xl md:text-3xl font-serif font-bold text-center mb-6 md:mb-8"
-          style={{ color: colors.primary }}
-          initial={{ opacity: 0 }}
-          animate={isBookInView ? { opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.4 }}>
-          My Study Materials
-        </motion.h2>
+              {/* Lightbox: main photo + thumbnails + arrows */}
+              <AnimatePresence>
+              {lightboxOpen && (
+                <motion.div
+                  className="fixed inset-0 z-50 flex flex-col bg-black/90 p-4 md:p-6"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={closeLightbox}
+                >
+                  <div className="absolute top-4 right-4 z-10">
+                    <button
+                      type="button"
+                      onClick={closeLightbox}
+                      className="w-10 h-10 rounded-full flex items-center justify-center border-2 text-white hover:bg-white/20 focus:outline-none"
+                      style={{ borderColor: colors.accent }}
+                      aria-label="Close"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 flex items-center justify-center min-h-0 pt-12 pb-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => (i <= 0 ? photos.length - 1 : i - 1)); }}
+                      className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center border-2 text-white hover:bg-white/20 focus:outline-none mr-2"
+                      style={{ borderColor: colors.accent }}
+                      aria-label="Previous"
+                    >
+                      <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <div className="flex-1 flex flex-col items-center justify-center max-w-4xl max-h-full">
+                      <motion.img
+                        key={lightboxIndex}
+                        src={photos[lightboxIndex]?.url}
+                        alt=""
+                        className="max-w-full max-h-[60vh] md:max-h-[70vh] w-auto object-contain rounded-lg"
+                        initial={{ opacity: 0.8 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={(e) => e.stopPropagation()}
+                        draggable={false}
+                      />
+                      <div className="flex gap-2 mt-4 overflow-x-auto justify-center pb-2 max-w-full" style={{ scrollbarWidth: 'thin' }}>
+                        {photos.map((p, i) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(i); }}
+                            className={`flex-shrink-0 w-14 h-14 md:w-20 md:h-20 rounded overflow-hidden border-2 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-white transition-opacity ${i === lightboxIndex ? 'opacity-100 ring-2 ring-white ring-offset-2 ring-offset-black' : 'opacity-60 hover:opacity-90'}`}
+                            style={{ borderColor: i === lightboxIndex ? colors.accent : 'transparent' }}
+                          >
+                            <img src={p.url} alt="" className="w-full h-full object-cover" draggable={false} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setLightboxIndex((i) => (i >= photos.length - 1 ? 0 : i + 1)); }}
+                      className="flex-shrink-0 w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center border-2 text-white hover:bg-white/20 focus:outline-none ml-2"
+                      style={{ borderColor: colors.accent }}
+                      aria-label="Next"
+                    >
+                      <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+              </AnimatePresence>
+            </>
+          )}
 
-        {/* Content Container */}
-        <motion.div className="rounded-lg p-6 md:p-8 border-l-4"
-          style={{ 
-            backgroundColor: 'rgba(255,255,255,0.95)', 
-            borderColor: colors.primary
-          }}
-          initial={{ y: 20, opacity: 0 }}
-          animate={isBookInView ? { y: 0, opacity: 1 } : { opacity: 0 }}
-          transition={{ duration: 0.5 }}>
-
-          {/* Image Grid */}
-          <motion.div 
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 md:gap-6"
-            variants={containerVariants}
-            initial="hidden"
-            animate={isBookInView ? "visible" : "hidden"}
-          >
-            {[
-              { level: 1, file: 'Level1_Wallpaper1.jpg' },
-              { level: 3, file: 'Level3_Wallpaper2.jpg' },
-              { level: 4, file: 'Level4_Wallpaper3_page-0001.jpg' },
-              { level: 5, file: 'Level5_Wallpaper1_page-0001.jpg' },
-              { level: 6, file: 'Level6_Wallpaper2_page-0001.jpg' }
-            ].map((item) => (
-              <motion.div
-                key={item.level}
-                variants={itemVariants}
-                whileHover={{ scale: 1.05 }}
-                className="flex justify-center"
-              >
-                <img 
-                  src={`/${item.file}`}
-                  alt={`Incredible English Level ${item.level}`}
-                  className="max-w-full h-auto object-contain rounded-lg shadow-sm"
-                  style={{ 
-                    maxHeight: '300px',
-                    border: `2px solid ${colors.accent}`,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                  }}
-                  loading="lazy"
-                />
-              </motion.div>
-            ))}
-          </motion.div>
-
-         
-        </motion.div>
-      </section>
+        </section>
 
         {/* Contact Me Section */}
         <section ref={contactRef} className="mb-16 md:mb-24 pb-12">
@@ -597,7 +587,7 @@ export default function Home() {
                   <div>
                     <p className="font-serif font-semibold" style={{ color: colors.primary }}>Instagram</p>
                     <a href="https://www.instagram.com/dizimahavithanage/" target="_blank" rel="noopener noreferrer" className="font-serif hover:underline" style={{ color: colors.text }}>
-                    @dizimahavithanage
+                      @dizimahavithanage
                     </a>
                   </div>
                 </div>
@@ -609,7 +599,7 @@ export default function Home() {
                   <div>
                     <p className="font-serif font-semibold" style={{ color: colors.primary }}>Facebook</p>
                     <a href="https://www.facebook.com/profile.php?id=100067154321634" target="_blank" rel="noopener noreferrer" className="font-serif hover:underline" style={{ color: colors.text }}>
-                    DiZi's - The Home of English
+                      DiZis The Home of English
                     </a>
                   </div>
                 </div>
@@ -631,12 +621,6 @@ export default function Home() {
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
           viewport={{ once: true }}>
-          <p className="font-serif">
-            &copy; {new Date().getFullYear()} DiZi's English Academy. All rights reserved.
-          </p>
-          <p className="mt-2 font-serif text-xs">
-            Established in London, 2010 | Registered in England and Wales
-          </p>
         </motion.footer>
       </motion.main>
     </div>
