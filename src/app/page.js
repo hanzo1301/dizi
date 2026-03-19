@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { motion, useInView, AnimatePresence } from 'framer-motion';
 import { useRef } from 'react';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+
 export default function Home() {
   // Google Drive photo gallery (sync from Drive folder when DRIVE_FOLDER_ID + credentials are set)
   const [photos, setPhotos] = useState([]);
@@ -74,7 +76,7 @@ export default function Home() {
       try {
         setPhotosLoading(true);
         setPhotosError(null);
-        const res = await fetch('/api/photos');
+        const res = await fetch(`${API_BASE}/api/photos`);
         const data = await res.json();
         if (cancelled) return;
         if (data.success) {
@@ -102,7 +104,7 @@ export default function Home() {
       try {
         setEventsLoading(true);
         setEventsError(null);
-        const res = await fetch('/api/events');
+        const res = await fetch(`${API_BASE}/api/events`);
         const data = await res.json();
         if (cancelled) return;
         if (data.success) {
