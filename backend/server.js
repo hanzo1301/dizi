@@ -7,7 +7,11 @@ import debugRouter from './src/routes/debug-drive.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://www.dizistheeasyway.com',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 app.use('/api/photos', photosRouter);
